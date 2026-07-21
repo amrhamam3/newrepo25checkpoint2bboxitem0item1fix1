@@ -60,8 +60,11 @@ class DXF2DView @JvmOverloads constructor(
      * ومهم برضو عشان ألوان بعض العناصر (زي الأبيض أو الأصفر من AciColors) بتفضل واضحة
      * بس على خلفيات غامقة؛ فبنسيب الاختيار للمستخدم بدل ما نفرض خلفية بيضا ممكن تخفي رسمته.
      * وعشان الشبكة (Grid) والمحاور تفضل واضحة أيًا كان اللون المختار، بنلوّنهم تلقائيًا
-     * حسب سطوع الخلفية (فاتحة → خطوط غامقة، غامقة → خطوط فاتحة) بدل ما نسيبهم لون ثابت. */
-    fun setBackgroundColor(color: Int) {
+     * حسب سطوع الخلفية (فاتحة → خطوط غامقة، غامقة → خطوط فاتحة) بدل ما نسيبهم لون ثابت.
+     * ملحوظة: الاسم `setDxfBackgroundColor` مش `setBackgroundColor` عشان الاسم التاني
+     * أصلًا method موجودة في View نفسها (بتلوّن خلفية الـ View كعنصر UI عادي)، فاستخدامه
+     * كان بيعمل "hides member of supertype" ومنع الـ build. */
+    fun setDxfBackgroundColor(color: Int) {
         bgPaint.color = color
         val luminance = (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255.0
         val isLightBg = luminance > 0.55
