@@ -797,7 +797,7 @@ class ViewerFragment : Fragment() {
             }
             swatch.layoutParams = LinearLayout.LayoutParams(swatchSize, swatchSize)
             swatch.setOnClickListener {
-                dxf2DView.setBackgroundColor(android.graphics.Color.parseColor(bgHex[i]))
+                dxf2DView.setDxfBackgroundColor(android.graphics.Color.parseColor(bgHex[i]))
                 dialog.dismiss()
             }
             cell.addView(swatch)
@@ -826,10 +826,10 @@ class ViewerFragment : Fragment() {
     private fun applyViewerBackgroundForCurrentMode() {
         if (AppDisplayMode.isLight(requireContext())) {
             glViewerView.stlRenderer.setBackgroundColor(0.92f, 0.92f, 0.92f) // نفس قيمة سواتش "أبيض" في زرار الخامة
-            dxf2DView.setBackgroundColor(android.graphics.Color.parseColor("#EDEDEF"))
+            dxf2DView.setDxfBackgroundColor(android.graphics.Color.parseColor("#EDEDEF"))
         } else {
             glViewerView.stlRenderer.setBackgroundColor(0.10f, 0.11f, 0.13f) // نفس قيمة سواتش "داكن"
-            dxf2DView.setBackgroundColor(android.graphics.Color.parseColor("#0D0F12")) // نفس الافتراضي الأصلي في DXF2DView
+            dxf2DView.setDxfBackgroundColor(android.graphics.Color.parseColor("#0D0F12")) // نفس الافتراضي الأصلي في DXF2DView
         }
     }
 
