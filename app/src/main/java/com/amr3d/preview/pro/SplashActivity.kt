@@ -251,3 +251,10 @@ class SplashActivity : AppCompatActivity() {
         handler.removeCallbacksAndMessages(null)
     }
 }
+
+
+
+
+
+
+
