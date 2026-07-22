@@ -14,4 +14,10 @@
     <color name="text_secondary">#5B6472</color>
     <color name="warning_red">#D93A2E</color>
     <color name="success_green">#1F8F58</color>
+
+    <!-- نسخة الوضع الفاتح من ألوان العناصر العائمة (شوف values-night/colors.xml
+         للتوثيق الكامل) -->
+    <color name="surface_overlay">#CCFFFFFF</color>
+    <color name="compass_disc_center">#E6FFFFFF</color>
+    <color name="compass_disc_edge">#8CFFFFFF</color>
 </resources>
