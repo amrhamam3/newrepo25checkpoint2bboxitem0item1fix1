@@ -71,6 +71,8 @@ class SplashActivity : AppCompatActivity() {
         // تطبيق لون الثيم
         val theme = AppTheme.getCurrent(this)
         wireframeView.accentColor = theme.accent
+        wireframeView.backgroundColorValue =
+            if (AppDisplayMode.isLight(this)) 0xFFF1F2F5.toInt() else 0xFF020510.toInt()
         ringView.accent1 = theme.accent
         ringView.accent2 = theme.accentDark
         titleText.accentColor = theme.accent
