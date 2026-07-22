@@ -19,19 +19,24 @@ object DXFParser {
     private data class DxfPair(val code: Int, val value: String)
 
     fun parse(context: Context, uri: Uri): DxfModel {
-        val text = context.contentResolver.openInputStream(uri)?.use {
-            it.bufferedReader(Charsets.ISO_8859_1).readText()
-        } ?: throw STLParseException(context.getString(R.string.error_dxf_open_failed))
-
-        val rawLines = text.lines()
+        // ⚠️ إصلاح أداء/ذاكرة مهم: النسخة القديمة كانت بتقرا الملف كله في String واحد
+        // ضخم (readText())، وبعدين تقسّمه لقائمة كاملة بكل أسطر الملف (text.lines())
+        // — يعني نسختين إضافيتين من كل بيانات الملف قاعدين في الذاكرة في نفس اللحظة
+        // فوق الـ pairs نفسها. لملف DXF حقيقي 10 ميجا (اللي عادة فيه مئات الآلاف من
+        // الأسطر بسبب صيغة DXF المطوّلة)، ده كان بيضاعف استهلاك الذاكرة أضعاف كتير
+        // ويسبب OutOfMemoryError. دلوقتي بنقرا سطرين سطرين مباشرة من الـ stream (زي
+        // BufferedReader.readLine() العادي) من غير ما نحتفظ بالملف كله أو بكل أسطره
+        // كقائمة منفصلة — نفس منطق تجميع الـ pairs (code, value) بالظبط زي الأول.
         val pairs = mutableListOf<DxfPair>()
-        var idx = 0
-        while (idx < rawLines.size - 1) {
-            val code = rawLines[idx].trim().toIntOrNull()
-            val value = rawLines[idx + 1].trim()
-            if (code != null) pairs.add(DxfPair(code, value))
-            idx += 2
-        }
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            val reader = stream.bufferedReader(Charsets.ISO_8859_1)
+            while (true) {
+                val codeLine = reader.readLine() ?: break
+                val valueLine = reader.readLine() ?: break
+                val code = codeLine.trim().toIntOrNull()
+                if (code != null) pairs.add(DxfPair(code, valueLine.trim()))
+            }
+        } ?: throw STLParseException(context.getString(R.string.error_dxf_open_failed))
 
         // ══ 1) قراءة جدول الطبقات (LAYER table) — عشان نعرف لون كل طبقة ══
         val layerColors = mutableMapOf<String, Int>() // اسم الطبقة -> رقم لون ACI
