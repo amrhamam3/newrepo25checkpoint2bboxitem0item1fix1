@@ -270,6 +270,31 @@ class STLRenderer : GLSurfaceView.Renderer {
     /** ملحوظة: بيفترض إن الموديل الممرّر هنا اتطبّق عليه applyAxisConvention() بالفعل
      * من المستدعي — مش بيعمل التبديل تاني هنا عشان نتجنب تبديل مزدوج (اللي هيرجّع
      * الاتجاه الغلط تاني!) لما setModel بتتنفذ على GL thread عن طريق queueEvent. */
+    /** بتحرر الموديل الحالي من الذاكرة (المصفوفات الضخمة + نقاط القياس) — لازم تتنادى
+     * قبل أي تحميل جديد (STL أو حتى قبل التبديل لعرض DXF)، مش بس عند تبديل الوضع، عشان
+     * الموديل السابق ميفضلش قاعد في الذاكرة "لحد ما الـ GC يقرر" وهو ده اللي كان بيخلي
+     * حتى تحميل ملف واحد كبير لوحده يقرب من حد الذاكرة بسرعة. بيشيل بيانات الـ VBOs من
+     * كارت الشاشة كمان (نفس المقابض بترجع لحجم صفر بدل ما تفضل شايلة آخر موديل اترفع). */
+    fun clearModel() {
+        currentModel = null
+        pendingModel = null
+        vertexBuffer = null; normalBuffer = null; wireframeBuffer = null
+        vertexCountToDraw = 0
+        wireframeVertexCount = 0
+        vboReady = false
+        measurementPoints.clear()
+        previewPoint = null
+        if (vboIds[0] != 0) {
+            GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0])
+            GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, 0, null, GLES20.GL_STATIC_DRAW)
+            GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[1])
+            GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, 0, null, GLES20.GL_STATIC_DRAW)
+            GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[2])
+            GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, 0, null, GLES20.GL_STATIC_DRAW)
+            GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0)
+        }
+    }
+
     fun setModel(model: STLModel) {
         currentModel = model
         pendingModel = model   // يُرفع على GL thread في onDrawFrame أو onSurfaceCreated
@@ -348,15 +373,15 @@ class STLRenderer : GLSurfaceView.Renderer {
             vb.asFloatBuffer().put(verts); vb.position(0)
             GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0])
             GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, verts.size * 4, vb, GLES20.GL_STATIC_DRAW)
-            // تحرير فوري
-            @Suppress("NOTHING_TO_INLINE")
-            System.gc()
+            // ⚠️ ملحوظة: هنا كان فيه استدعاء System.gc() يدوي اتشال. System.gc() مش
+            // بيضمن تحرير فوري للذاكرة (مجرد "اقتراح" للـ GC)، لكنه بيوقف التطبيق فعليًا
+            // للحظات محاول ينفذ — وده بالظبط سبب إحساس "الهنج" أثناء تحميل موديل كبير،
+            // مش حل له. حذفه وحده بيشيل مصدر تهنيج حقيقي.
 
             val nb = ByteBuffer.allocateDirect(norms.size * 4).order(ByteOrder.nativeOrder())
             nb.asFloatBuffer().put(norms); nb.position(0)
             GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[1])
             GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, norms.size * 4, nb, GLES20.GL_STATIC_DRAW)
-            System.gc()
 
             // Wireframe: LOD مع حد أقصى 50K مثلث للـ wireframe
             val triCount = vertexCountToDraw / 3
