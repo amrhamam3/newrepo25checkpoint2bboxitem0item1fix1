@@ -58,6 +58,11 @@ class GLViewerView(context: Context, attrs: AttributeSet? = null) : GLSurfaceVie
 
     init {
         setEGLContextClientVersion(2)
+        // بيخلي onPause()/onResume() يوقف/يشغّل خيط الرندر بس، من غير ما يدمّر الـ EGL
+        // context والـ VBOs — مهم جدًا عشان لما نستخدمهم وقت التبديل لوضع DXF (شوف
+        // switchTo2DMode/switchTo3DMode في ViewerFragment)، الموديل يفضل موجود جاهز
+        // للعرض فورًا لو المستخدم رجع لوضع الـ 3D من غير ما يعيد تحميل الملف.
+        preserveEGLContextOnPause = true
         setRenderer(stlRenderer)
         renderMode = RENDERMODE_CONTINUOUSLY
     }
