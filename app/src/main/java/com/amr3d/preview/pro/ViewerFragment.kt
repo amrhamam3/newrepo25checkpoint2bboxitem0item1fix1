@@ -158,6 +158,19 @@ class ViewerFragment : Fragment() {
             loadSavedSettings()
             btnUnit.text = getString(currentUnit.labelRes)
         }
+        // MainActivity بيستخدم hide()/show() للتنقل بين التابات (مش replace)، يعني لما
+        // المستخدم يروح لتاب تاني (الإعدادات مثلاً)، شاشة العارض دي مش بتتقفل فعليًا،
+        // بس بتختفي — ومن غيرها، خيط رندر الـ GL (RENDERMODE_CONTINUOUSLY) كان بيفضل
+        // شغال باستمرار في الخلفية حتى والمستخدم مش شايف الشاشة دي خالص، وده سبب حقيقي
+        // للاج العام مش بس وقت تحميل الملفات. بنوقفه هنا ونشغّله بس لما نرجع فعليًا،
+        // وبس لو مفيش عرض DXF شغال حاليًا (وقتها الـ GL أصلاً متوقف عمدًا).
+        if (::glViewerView.isInitialized) {
+            if (hidden) {
+                glViewerView.onPause()
+            } else if (!is2DMode) {
+                glViewerView.onResume()
+            }
+        }
     }
 
     private var particleChoreographerCallback: android.view.Choreographer.FrameCallback? = null
@@ -528,6 +541,11 @@ class ViewerFragment : Fragment() {
     private fun loadStlFile(uri: Uri) {
         switchTo3DMode()
         showLoadingBar(getString(R.string.loading_file), 0)
+        // بنحرر الموديل القديم من الذاكرة (لو موجود) قبل ما نبدأ نقرا الملف الجديد —
+        // مش بس عند تبديل الوضع، عشان حتى تحميل ملف واحد كبير لوحده منوصلش لحد الذاكرة
+        // بسرعة بسبب موديل سابق لسه قاعد. لازم يتنفذ على GL thread عشان بيلمس VBOs.
+        glViewerView.queueEvent { glViewerView.stlRenderer.clearModel() }
+        dxf2DView.clear() // مفيش داعي نسيب رسمة DXF قديمة قاعدة في الذاكرة ونحن بنفتح STL
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
@@ -591,6 +609,9 @@ class ViewerFragment : Fragment() {
     private fun loadDxfFile(uri: Uri) {
         switchTo2DMode()
         showLoadingBar(getString(R.string.loading_file), 0)
+        // نفس المنطق بالظبط: نحرر موديل الـ STL القديم (لو موجود) قبل ما نفتح DXF جديد،
+        // عشان الاتنين ميفضلوش قاعدين في الذاكرة مع بعض من غير داعي
+        glViewerView.queueEvent { glViewerView.stlRenderer.clearModel() }
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
@@ -637,6 +658,11 @@ class ViewerFragment : Fragment() {
         is2DMode = true
         currentModel = null
         glViewerView.visibility = View.GONE
+        // بيوقف خيط رندر الـ GL تمامًا بدل ما يفضل شغال باستمرار في الخلفية وهو مخفي
+        // (إخفاء الـ View بس (GONE) ما بيوقفش الرندر — GLSurfaceView ليه Thread منفصل).
+        // بفضل preserveEGLContextOnPause=true، الموديل هيفضل جاهز للعرض على طول لما
+        // نرجع للـ 3D من غير ما نحتاج نرفعه تاني لكارت الشاشة.
+        glViewerView.onPause()
         dxf2DView.visibility = View.VISIBLE
 
         displayToolbar.visibility = View.GONE   // مادة / شبكي / وحدة / تصدير / إضاءة — كلها خاصة بالـ 3D
@@ -675,6 +701,7 @@ class ViewerFragment : Fragment() {
         dxf2DView.visibility = View.GONE
         dxf2DView.clear()
         glViewerView.visibility = View.VISIBLE
+        glViewerView.onResume()
 
         displayToolbar.visibility = View.VISIBLE
         btnMeasureTool.isChecked  = false
