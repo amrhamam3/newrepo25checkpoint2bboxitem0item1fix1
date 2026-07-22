@@ -141,11 +141,18 @@ class SettingsFragment : Fragment() {
         val lightModeSwitch = view.findViewById<Switch>(R.id.switchLightMode)
         lightModeSwitch.isChecked = AppDisplayMode.isLight(requireContext())
         lightModeSwitch.setOnCheckedChangeListener { _, checked ->
-            // AppDisplayMode.setLight() بينادي AppCompatDelegate.setDefaultNightMode() اللي
-            // بيعمل تلقائيًا recreate() لكل الـ Activities الشغالة حاليًا — نداء recreate()
-            // يدوي هنا فوق ده كان بيسبب "double recreate" في نفس اللحظة، وده اللي كان بيكسر
-            // التنقل بين الشاشات وبيسيب bottomNav في حالة متضاربة (شوف الصور). ما ينفعش نضيفه.
-            AppDisplayMode.setLight(requireContext(), checked)
+            if (checked != AppDisplayMode.isLight(requireContext())) {
+                AppDisplayMode.setLight(requireContext(), checked)
+                // بالظبط نفس منطق تغيير اللغة فوق: إعادة تشغيل نظيفة بالكامل (مش recreate)
+                // عشان نتجنب تعارض الفراجمنتس المحفوظة تلقائياً مع اللي بيضيفها MainActivity
+                // يدوياً — recreate() (سواء يدوي أو التلقائي اللي بيعمله AppCompatDelegate
+                // نفسه) كان بيسيب bottomNav في حالة متضاربة ويوقف التنقل تمامًا.
+                val restartIntent = Intent(ctx, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                startActivity(restartIntent)
+                requireActivity().finish()
+            }
         }
 
         // ══ تواصل ══
