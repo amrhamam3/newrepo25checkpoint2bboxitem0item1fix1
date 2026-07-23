@@ -126,6 +126,7 @@ class ViewerFragment : Fragment() {
             "INCH" -> MeasurementUnit.INCH
             else   -> MeasurementUnit.MM
         }
+        if (::dxf2DView.isInitialized) dxf2DView.currentUnit = currentUnit
         val quality = when (prefs.getString("quality", "HIGH")) {
             "LOW"    -> 0
             "MEDIUM" -> 1
@@ -405,7 +406,7 @@ class ViewerFragment : Fragment() {
         }
 
         dxf2DView.onDistanceMeasured = { dist ->
-            Toast.makeText(context, getString(R.string.toast_dxf_distance, dist), Toast.LENGTH_LONG).show()
+            Toast.makeText(context, getString(R.string.toast_dxf_distance, dist, getString(currentUnit.labelRes)), Toast.LENGTH_LONG).show()
         }
 
         btnInspect.setOnClickListener {
@@ -597,6 +598,14 @@ class ViewerFragment : Fragment() {
                 if (!isAdded || view == null) return@launch
                 hideLoadingBar()
                 Toast.makeText(context, getString(R.string.toast_permission_error), Toast.LENGTH_LONG).show()
+            } catch (e: OutOfMemoryError) {
+                // نفس ملحوظة DXF فوق: OutOfMemoryError نوعها Error مش Exception، فمحتاجة
+                // catch منفصل وإلا التطبيق بيكراش من غير أي رسالة بدل ما يقول للمستخدم
+                // "الملف كبير جدًا" بشكل واضح ومهذّب
+                if (!isAdded || view == null) return@launch
+                hideLoadingBar()
+                glViewerView.queueEvent { glViewerView.stlRenderer.clearModel() }
+                Toast.makeText(context, getString(R.string.toast_file_too_large), Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 if (!isAdded || view == null) return@launch
                 hideLoadingBar()
@@ -644,6 +653,15 @@ class ViewerFragment : Fragment() {
                 if (!isAdded || view == null) return@launch
                 hideLoadingBar()
                 Toast.makeText(context, getString(R.string.toast_permission_error), Toast.LENGTH_LONG).show()
+            } catch (e: OutOfMemoryError) {
+                // ⚠️ مهم: OutOfMemoryError نوعها Error مش Exception في الجافا/الكوتلن —
+                // يعني catch (e: Exception) العادي ما كانش بيلقطها خالص، والتطبيق كان
+                // بيكراش تمامًا من غير ما يوري أي رسالة للمستخدم. دلوقتي بنلقطها صراحةً.
+                if (!isAdded || view == null) return@launch
+                hideLoadingBar()
+                glViewerView.queueEvent { glViewerView.stlRenderer.clearModel() }
+                dxf2DView.clear()
+                Toast.makeText(context, getString(R.string.toast_file_too_large), Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 if (!isAdded || view == null) return@launch
                 hideLoadingBar()
@@ -1159,6 +1177,7 @@ class ViewerFragment : Fragment() {
             MeasurementUnit.INCH -> MeasurementUnit.MM
         }
         btnUnit.text = getString(currentUnit.labelRes)
+        dxf2DView.currentUnit = currentUnit
         currentModel?.let { if (inspectionCard.visibility == View.VISIBLE) showInspectionReport(it) }
         val pts = glViewerView.stlRenderer.getMeasurementPoints()
         if (pts.size == 2) updateMeasurementText(pts[0], pts[1])
